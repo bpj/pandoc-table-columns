@@ -1,6 +1,7 @@
 # `table-columns.lua`
 
-Pandoc filter for setting table column widths explicitly.
+Pandoc filter for setting table column widths and
+alignments explicitly.
 
 ## Synopsis
 
