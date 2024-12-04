@@ -129,8 +129,6 @@ HTML (blank lines added):
 </div>
 ```
 
-![](example.md.png)
-
 ## Rationale
 
 The criteria Pandoc uses to set the column widths of a

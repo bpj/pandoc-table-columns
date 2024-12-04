@@ -132,10 +132,6 @@ HTML (blank lines added):
 </div>
 ```
 
-![][1]
-
-  [1]: example.md.png
-
 <a name="rationale"></a>
 
 ## Rationale
