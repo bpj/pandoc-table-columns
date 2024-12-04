@@ -21,9 +21,88 @@ pdu = assert pandoc.utils, "Cannot find the pandoc.utils library"
 -- pdt = assert pandoc.text, "Cannot get the pandoc.text library"
 -- jsn = assert pandoc.json, "Cannot get the pandoc.json library"
 
+-- pprint = require"moon".p
+
+lpeg or= require"lpeg"
 re or= require"re"
 
--- pprint = require"moon".p
+utfR = assert lpeg.utfR, 'Cannot find lpeg.utfR. Please update pandoc!'
+
+---- Escape/quote a string for display in error message
+-- in case people have a non-UTF-8 terminal...
+
+-- UTF-8 char <-> code
+{:char, codepoint: code} = utf8
+
+-- Match any UTF-8 char
+y = lpeg.utfR(0x00,0x10ffff)
+
+-- Special escapes  
+esc =
+  "\"": '\\"'
+  "\\": '\\\\'
+  "\a": '\\a'
+  "\b": '\\b'
+  "\f": '\\f'
+  "\n": '\\n'
+  "\r": '\\r'
+  "\t": '\\t'
+  "\v": '\\v'
+  
+lang = os.getenv'LANG' or os.getenv'LC_ALL' or ""
+have_utf8 = lang\match'UTF%-8'
+
+want_esc = switch os.getenv'PDC_TAB_COLS_ESC'
+  when '1', 1, 'true'
+    true
+  when nil, '0', 0, 'false', ""
+    false
+  else
+    error "Cannot use env var PDC_TAB_COLS_ESC as boolean"
+    
+-- pprint :lang, :have_utf8, :want_esc
+
+if want_esc or not have_utf8
+  
+  -- All (other) printable ASCII
+  for i=0x20,0x7e
+    c = char i
+    esc[c] or= c
+
+  -- Chars not in the table
+  -- i.e. other ASCII controls and above ASCII
+  setmetatable esc, __index: (c) => "\\u{%x}"\format code c
+
+  -- Now any char which *is* a key in the table, i.e. special controls and printable ASCII
+  -- will be replaced with their values from the table,
+  -- which for most of them means themselves
+  -- while all other chars will be replaced with an `\u{xxx}` escape.
+else
+  -- Add ASCII/Latin-1 control characters to esc
+  for range in *{ {0,0x1f}, {0x7f,0x9f} }
+    for {s,e} in range
+      for i=s,e
+        esc[char i] or= "\\u{%x}"\format i
+
+-- The quoting/escaping/truncating pattern
+qpat = re.compile(
+  [=[ -- @start-re
+    str <- {~ dq char^-30 trail? dq !. ~}
+    -- Nothing becomes a quote
+    dq <- ( "" -> '"' )
+    -- A possibly escaped char or a stray byte
+    char <- ( %w / %y -> esc / . )
+    -- An ellipsis for the rest
+    trail <- ( .+ -> '...' )
+  ]=], :y, :esc
+)
+
+-- The wrapper function stringifies its arg first
+qs = (s) -> qpat\match tostring(s)
+
+---- end Escape/quote a string for display in error message
+
+---- Attributes handling
 
 -- Convert a percentage to a float by dividing it by 100
 pcnt2float = (p) -> p / 100
@@ -52,6 +131,10 @@ get_re = (defs) ->
   -- Compile the main pattern
   return re.compile parse_re, defs
 
+---- end Attributes handling
+
+---- Filter function definitions
+
 -- Parameters for the filter function/generator
 filter_defs  = {
   { prop: 'widths'
@@ -68,6 +151,7 @@ filter_defs  = {
   }
 }
 
+-- These keys are copied from the def to the spec
 spec_keys = { 'prop', 'fallbk' }
 
 -- Get a list of attribute names
@@ -81,9 +165,9 @@ tab_filter = (specs) ->
   -- Generate and return the filter function
   -- as a closure around the specs
   return (complex) -> -- we get a "complex" Table
-    -- but it is easier to work on a SimpleTable
-    -- although we save any attributes first
+    -- whose attributes we save first
     attr = complex.attr
+    -- but it is easier to work on a SimpleTable
     simple = pdu.to_simple_table complex
     -- Apply each spec
     for spec in *specs
@@ -99,11 +183,6 @@ tab_filter = (specs) ->
     complex.attr = attr
     return complex
 
--- Escape/quote a string for display in error message
-qs = (s) ->
-  q = tostring(s)\gsub '[%"\\]', '\\%0'
-  return '"' .. q .. '"'
-
 -- Get the value specs from the attributes
 get_specs = (elem) ->
   specs = {} -- collect them here
@@ -113,19 +192,21 @@ get_specs = (elem) ->
     if attr = elem.attributes[def.attr] or elem.attributes[def.data]
       -- and it is valid
       if spec = def.re\match attr
-        -- Copy key--val pairs
-        spec[k] = def[k] for k in *spec_keys
-        -- If there was a star the default value is
-        -- the last actual value if any, else the fallback value
-        spec.dft = if spec.star then spec[#spec] or def.fallbk else def.fallbk
-        -- add these to the specs
-        specs[#specs+1] = spec
+        -- and it is not empty
+        if 0 < #spec
+          -- Copy key--val pairs
+          spec[k] = def[k] for k in *spec_keys
+          -- If there was a star the default value is
+          -- the last actual value if any, else the fallback value
+          spec.dft = if spec.star then spec[#spec] or def.fallbk else def.fallbk
+          -- add these to the specs
+          specs[#specs+1] = spec
       else -- if invalid attribute
         error "Invalid #{def.attr}|#{def.data}=#{qs attr}"
   -- If there were any attributes
   if 0 < #specs
     return specs
-  -- else if no attributea
+  -- else if no attributes
   return nil
 
 -- Filter a div
@@ -152,6 +233,6 @@ Table = (tab) ->
     return tab
   return nil
 
--- Return the main filter
+---- Return the main filter
 return { {:Div, :Table} }
 

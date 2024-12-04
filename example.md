@@ -12,7 +12,7 @@
 | toc | 100 | 200 | 300
 :::
 
-::: {.keep tab-col-widths="20,15*" tab-col-aligns="c*"}
+::: {.keep tab-col-widths="15,10*" tab-col-aligns="c*"}
 |a|b|g|d
 |-|-|-|-
 |alpha|beta|gamma|delta

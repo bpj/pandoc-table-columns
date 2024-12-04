@@ -1,7 +1,3 @@
--- Do NOT edit. Automatically generated from table-columns.moon
--- See README.md at 
--- https://github.com/bpj/pandoc-table-columns
-
 local fallback_width = 0.0
 local fallback_align = 'AlignDefault'
 local widths_attr = 'tab-col-widths'
@@ -19,7 +15,65 @@ if not ('table' == type(pdc)) then
   error("Expected variable pandoc to be table")
 end
 local pdu = assert(pandoc.utils, "Cannot find the pandoc.utils library")
+local lpeg = lpeg or require("lpeg")
 local re = re or require("re")
+local utfR = assert(lpeg.utfR, 'Cannot find lpeg.utfR. Please update pandoc!')
+local char, code
+do
+  local _obj_0 = utf8
+  char, code = _obj_0.char, _obj_0.codepoint
+end
+local y = lpeg.utfR(0x00, 0x10ffff)
+local esc = {
+  ["\""] = '\\"',
+  ["\\"] = '\\\\',
+  ["\a"] = '\\a',
+  ["\b"] = '\\b',
+  ["\f"] = '\\f',
+  ["\n"] = '\\n',
+  ["\r"] = '\\r',
+  ["\t"] = '\\t',
+  ["\v"] = '\\v'
+}
+local lang = os.getenv('LANG') or os.getenv('LC_ALL') or ""
+local have_utf8 = lang:match('UTF%-8')
+local want_esc
+local _exp_0 = os.getenv('PDC_TAB_COLS_ESC')
+if '1' == _exp_0 or 1 == _exp_0 or 'true' == _exp_0 then
+  want_esc = true
+elseif nil == _exp_0 or '0' == _exp_0 or 0 == _exp_0 or 'false' == _exp_0 or "" == _exp_0 then
+  want_esc = false
+else
+  want_esc = error("Cannot use env var PDC_TAB_COLS_ESC as boolean")
+end
+if want_esc or not have_utf8 then
+  for i = 0x20, 0x7e do
+    local c = char(i)
+    local _update_0 = c
+    esc[_update_0] = esc[_update_0] or c
+  end
+  setmetatable(esc, {
+    __index = function(self, c)
+      return ("\\u{%x}"):format(code(c))
+    end
+  })
+end
+local qpat = re.compile([=[ -- @start-re
+    str <- {~ dq char^-30 trail? dq !. ~}
+    -- Nothing becomes a quote
+    dq <- ( "" -> '"' )
+    -- A possibly escaped char or a stray byte
+    char <- ( %w / %y -> esc / . )
+    -- An ellipsis for the rest
+    trail <- ( .+ -> '...' )
+  ]=], {
+  y = y,
+  esc = esc
+})
+local qs
+qs = function(s)
+  return qpat:match(tostring(s))
+end
 local pcnt2float
 pcnt2float = function(p)
   return p / 100
@@ -99,11 +153,6 @@ tab_filter = function(specs)
     return complex
   end
 end
-local qs
-qs = function(s)
-  local q = tostring(s):gsub('[%"\\]', '\\%0')
-  return '"' .. q .. '"'
-end
 local get_specs
 get_specs = function(elem)
   local specs = { }
@@ -115,16 +164,18 @@ get_specs = function(elem)
         do
           local spec = def.re:match(attr)
           if spec then
-            for _index_1 = 1, #spec_keys do
-              local k = spec_keys[_index_1]
-              spec[k] = def[k]
+            if 0 < #spec then
+              for _index_1 = 1, #spec_keys do
+                local k = spec_keys[_index_1]
+                spec[k] = def[k]
+              end
+              if spec.star then
+                spec.dft = spec[#spec] or def.fallbk
+              else
+                spec.dft = def.fallbk
+              end
+              specs[#specs + 1] = spec
             end
-            if spec.star then
-              spec.dft = spec[#spec] or def.fallbk
-            else
-              spec.dft = def.fallbk
-            end
-            specs[#specs + 1] = spec
           else
             error("Invalid " .. tostring(def.attr) .. "|" .. tostring(def.data) .. "=" .. tostring(qs(attr)))
           end
