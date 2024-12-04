@@ -27,12 +27,11 @@ end
 local parse_re = [=[ -- @start-re
   list <- {| (val sep)* val? star? !. |}
   val <- ( %val -> conv )
-  sep <- ( %s* %sep %s* )
+  sep <- ( %s* ','? %s* )
   star <- {:star: '*' :}
 ]=]
 local re_keys = {
-  'val',
-  'sep'
+  'val'
 }
 local get_re
 get_re = function(defs)
@@ -49,7 +48,6 @@ local filter_defs = {
     data = widths_data_attr,
     re = get_re({
       val = '[0-9]+',
-      sep = "','",
       conv = pcnt2float
     }),
     fallbk = fallback_width
@@ -60,7 +58,6 @@ local filter_defs = {
     data = aligns_data_attr,
     re = get_re({
       val = '[dlcr]',
-      sep = "','?",
       conv = expand_align
     }),
     fallbk = fallback_align

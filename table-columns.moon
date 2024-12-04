@@ -37,12 +37,12 @@ pcnt2float = (p) -> p / 100
 parse_re = [=[ -- @start-re
   list <- {| (val sep)* val? star? !. |}
   val <- ( %val -> conv )
-  sep <- ( %s* %sep %s* )
+  sep <- ( %s* ','? %s* )
   star <- {:star: '*' :}
 ]=]
 
 -- Keys in re definitions which point at subpatterns to compile
-re_keys = {'val', 'sep'}
+re_keys = {'val', }
 
 -- Generate an re object with a table of definitions
 get_re = (defs) ->
@@ -57,13 +57,13 @@ filter_defs  = {
   { prop: 'widths'
     attr: widths_attr
     data: widths_data_attr
-    re: get_re{val: '[0-9]+', sep: "','", conv: pcnt2float}
+    re: get_re{val: '[0-9]+', conv: pcnt2float}
     fallbk: fallback_width
   }
   { prop: 'aligns'
     attr: aligns_attr
     data: aligns_data_attr
-    re: get_re{val: '[dlcr]', sep: "','?", conv: expand_align}
+    re: get_re{val: '[dlcr]', conv: expand_align}
     fallbk: fallback_align
   }
 }
