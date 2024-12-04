@@ -1,3 +1,8 @@
+
+-- Do NOT edit. Automatically generated from table-columns.moon
+-- See README.md at 
+-- https://github.com/bpj/pandoc-table-columns
+
 local fallback_width = 0.0
 local fallback_align = 'AlignDefault'
 local widths_attr = 'tab-col-widths'
@@ -57,6 +62,28 @@ if want_esc or not have_utf8 then
       return ("\\u{%x}"):format(code(c))
     end
   })
+else
+  local _list_0 = {
+    {
+      0,
+      0x1f
+    },
+    {
+      0x7f,
+      0x9f
+    }
+  }
+  for _index_0 = 1, #_list_0 do
+    local range = _list_0[_index_0]
+    for _des_0 in range do
+      local s, e
+      s, e = _des_0[1], _des_0[2]
+      for i = s, e do
+        local _update_0 = char(i)
+        esc[_update_0] = esc[_update_0] or ("\\u{%x}"):format(i)
+      end
+    end
+  end
 end
 local qpat = re.compile([=[ -- @start-re
     str <- {~ dq char^-30 trail? dq !. ~}
